@@ -146,15 +146,95 @@
 (defn triplicate2-with-fn [f & args]
   (triplicate (fn [] (apply f args))))
 ;; learn-clojure> (triplicate2-with-fn test-triplicate2 "xxx" "yyy" "z1" "z2")
-;; ("xxx" "yyy" "z1" "z2")
+;; x:  xxx  | y:  yyy  | zs:  (z1 z2)
+;; x:  xxx  | y:  yyy  | zs:  (z1 z2)
+;; x:  xxx  | y:  yyy  | zs:  (z1 z2)
 
 ;; NOTE: Testing with asserts instead
+;; To do this, I wanted to define a counter. This let me down a rabbit hole of trying to use dynamic scope with the `^:dynamic` directive,
+;; but that didn't work, so I tried atoms, instead.
+;; Do get started with atoms I ran `(find-doc "atom")` and I found three seemingly useful things:
+;; `atom`
+;; `deref` (reader macro @)
+;; `reset!`
+(def i-start-as-two (atom 2))
+(def i-start-as-sixty-four (atom 64))
+(defn test-triplicate3 [x] (reset! x (* @x 2)))
+(def expected-starting-at-2 16)
+(assert (=
+         (triplicate2-with-fn test-triplicate3 i-start-as-two)
+         expected-starting-at-2)
+        (str "expected " expected-starting-at-2 ", got " @i-start-as-two))
+(def expected-starting-at-64 512)
+(assert (=
+         (triplicate2-with-fn test-triplicate3 i-start-as-sixty-four)
+         expected-starting-at-64)
+        (str "expected " expected-starting-at-64 ", got " @i-start-as-sixty-four))
 
-(def ^:dynamic twome 2)
-(binding [twome twome]
-  (defn test-triplicate3 [x] (set! twome (* x 2)) twome)
+;; 10) Using the java.lang.Math class (Math/pow, Math/cos, Math/sin, Math/PI), demonstrate the following mathematical facts:
 
-  (assert (= (triplicate2-with-fn test-triplicate3 twome) 16) (str "expected 16, got " twome))
-  )
+;; 10.1) The cosine of pi is -1
+;; NOTE: This is somewhat misleading! Check out these asserts to understand why:
+(assert (not (= (Math/cos Math/PI) -1)))
+(assert (= (Math/cos Math/PI) -1.0))
+(assert (not (= (type -1) (type -1.0))))
+;; NOTE: From the REPL:
+;; learn-clojure> (type (Math/cos Math/PI))
+;; java.lang.Double
+;; learn-clojure> (type -1)
+;; java.lang.Long
 
+;; 10.2) For some x, sin(x)^2 + cos(x)^2 = 1
+(defn pythagorean-identity
+  "The Pythagorean identity function (LHS). ⊿
+
+  See https://en.wikipedia.org/wiki/Pythagorean_trigonometric_identity.
+
+  It's actually implemented, even though mathematically it's already proven, so it can be implemented by simply
+  returning 1..."
+  [x] (+ (Math/pow (Math/sin x) 2) (Math/pow (Math/cos x) 2)))
+
+;; NOTE: Asserting that the pythagorean identity equals 1 for a random number. We can test ALL numbers, but I don't have that
+;; kind of time 🐢
+;; Again, the way this is phrased is somewhat misleading! See the asserts to understand why.
+(assert not (= (pythagorean-identity (rand)) 1))
+(assert (= (int (Math/round (pythagorean-identity (rand)))) 1))
+
+;; 11) Define a function that takes an HTTP URL as a string, fetches that URL from the web, and returns the content as a string.
+;; Hint: Using the java.net.URL class and its openStream method. Then use the Clojure slurp function to get the content as a string.
+
+(defn http-get [url]
+(slurp (.openStream (java.net.URL. url))))
+
+(assert (.contains (http-get "https://wtfismyip.com/json") "YourFuckingIPAddress"))
+
+;; In fact, the Clojure slurp function interprets its argument as a URL first before trying it as a file name. Write a simplified http-get:
+
+(defn http-get-simple [url]
+(slurp url))
+
+(assert (.contains (http-get-simple "https://wtfismyip.com/json") "YourFuckingIPAddress"))
+
+;; 12) Define a function one-less-arg that takes two arguments:
+;; * f, a function
+;; * x, a value
+;; and returns another function which calls f on x plus any additional arguments.
+
+(defn one-less-arg [f x]
+(fn [& args] (apply f x args)))
+;; In Clojure, the partial function is a more general version of this.
+
+;; NOTE: Now, to test:
+(assert (= "firstarg some more args" ((one-less-arg str "firstarg ") "some" " more " "args")))
+
+;; 13) Define a function two-fns which takes two functions as arguments, f and g. It returns another function which takes one argument, calls g on it, then calls f on the result, and returns that.
+;; That is, your function returns the composition of f and g.
+
+(defn two-fns [f g]
+  (fn [x] (f (g x))))
+
+;; NOTE: now, to test:
+(def composed-sin-and-arcsin (two-fns (fn [x] (Math/sin x)) (fn [x] (Math/asin x))))
+(def random-value (rand))
+(assert (= (composed-sin-and-arcsin random-value) random-value))
 

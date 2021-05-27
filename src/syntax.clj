@@ -50,7 +50,7 @@
   ;;       m
   ;;       (+ m div))))
   ;; nil
-l
+
   (println "Using find-doc, find the function that prints the stack trace of the most recent REPL exception.")
   ;; learn-clojure> (find-doc "stack trace")
   ;; -------------------------
